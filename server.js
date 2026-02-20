@@ -124,11 +124,12 @@ app.get("/api/get-status", async (req, res) => {
   }
 });
 
-// Servir la web
+// Servir la carpeta public
 app.use(express.static("public"));
 
-// CORRECCIÓN PARA NODE 22+: Se usa '(.*)' o '/*' en lugar de '*'
-app.get("/*", (req, res) => {
+// SOLUCIÓN AL ERROR: Servimos el index.html solo en la ruta raíz
+// Esto evita el error de "PathError" en Node 22
+app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
