@@ -18,14 +18,16 @@ try {
   });
   console.log("🔥 Conectado a Firebase y Firestore correctamente");
 } catch (e) {
-  console.error("❌ ERROR: Asegúrate de tener el archivo 'firebase-key.json'");
+  console.error(
+    "❌ ERROR: Asegúrate de tener el archivo 'firebase-key.json' en la raíz",
+  );
 }
 
 const db = admin.firestore();
 
 // --- RUTAS DE LA API ---
 
-// A. REGISTRO: El celular guarda su nombre y token en la base de datos
+// 1. REGISTRO: El celular guarda su nombre y token en Firestore
 app.post("/api/register-device", async (req, res) => {
   const { deviceId, token } = req.body;
   if (!deviceId || !token) return res.status(400).send("Faltan datos");
@@ -43,14 +45,14 @@ app.post("/api/register-device", async (req, res) => {
         { merge: true },
       );
 
-    console.log(`📱 Dispositivo registrado en la nube: ${deviceId}`);
+    console.log(`📱 Dispositivo registrado: ${deviceId}`);
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// B. LISTA: La web lee los celulares guardados en Firestore
+// 2. LISTA: La web lee los celulares disponibles
 app.get("/api/devices", async (req, res) => {
   try {
     const snapshot = await db
@@ -64,9 +66,11 @@ app.get("/api/devices", async (req, res) => {
   }
 });
 
-// C. PETICIÓN: La web marca que quiere rastrear
+// 3. PETICIÓN: La web solicita rastreo vía Firebase Cloud Messaging
 app.post("/api/request-location", async (req, res) => {
   const { deviceToken } = req.body;
+  if (!deviceToken) return res.status(400).json({ error: "Falta el Token" });
+
   const message = {
     data: { command: "REQUEST_GPS" },
     token: deviceToken,
@@ -75,6 +79,7 @@ app.post("/api/request-location", async (req, res) => {
 
   try {
     await admin.messaging().send(message);
+    // Marcamos estado pendiente
     await db
       .collection("artifacts", appId, "public", "data", "status")
       .doc("lastLocation")
@@ -90,9 +95,9 @@ app.post("/api/request-location", async (req, res) => {
   }
 });
 
-// D. RECIBIR: El celular envía el GPS y lo guardamos en Firestore
+// 4. RECIBIR: El celular envía el GPS y el "PROVEEDOR" (GPS/Red)
 app.post("/api/receive-location", async (req, res) => {
-  const { lat, lng, accuracy, deviceId } = req.body;
+  const { lat, lng, accuracy, deviceId, provider } = req.body;
   try {
     await db
       .collection("artifacts", appId, "public", "data", "status")
@@ -102,16 +107,18 @@ app.post("/api/receive-location", async (req, res) => {
         lng,
         accuracy,
         deviceId,
+        provider: provider || "network", // Guardamos si es GPS o Red
         status: "OK",
         timestamp: Date.now(),
       });
+    console.log(`📍 GPS recibido de ${deviceId} vía ${provider}`);
     res.sendStatus(200);
   } catch (error) {
     res.status(500).send(error.message);
   }
 });
 
-// E. CONSULTAR: La web pregunta si ya llegó el GPS
+// 5. CONSULTAR: La web pregunta si ya hay datos nuevos
 app.get("/api/get-status", async (req, res) => {
   try {
     const doc = await db
@@ -124,16 +131,13 @@ app.get("/api/get-status", async (req, res) => {
   }
 });
 
-// Servir la carpeta public
+// --- SERVIR LA WEB ---
 app.use(express.static("public"));
 
-// SOLUCIÓN AL ERROR: Servimos el index.html solo en la ruta raíz
-// Esto evita el error de "PathError" en Node 22
-app.get("/", (req, res) => {
+// Corrección para evitar PathError en Node 22
+app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () =>
-  console.log(`🚀 Servidor con base de datos listo en puerto ${PORT}`),
-);
+const PORT = process.env.PORT || 10000;
+app.listen(PORT, () => console.log(`🚀 Servidor Pro listo en puerto ${PORT}`));
