@@ -14,6 +14,7 @@
         height: calc(100vh - 80px);
         width: 100%;
         border-radius: 1rem;
+        z-index: 1;
       }
       .pulse-searching {
         animation: pulse-blue 2s infinite;
@@ -32,7 +33,6 @@
     </style>
   </head>
   <body class="bg-slate-950 text-slate-200 font-sans overflow-hidden">
-    <!-- Header -->
     <header
       class="h-20 bg-slate-900/80 backdrop-blur-md border-b border-slate-800 px-8 flex justify-between items-center z-50 relative"
     >
@@ -57,45 +57,41 @@
           Tracker <span class="text-blue-500 font-black">Pro</span>
         </h1>
       </div>
-      <div class="flex items-center gap-4">
-        <div
-          id="badge"
-          class="px-4 py-1.5 bg-slate-800 rounded-full text-[10px] font-bold uppercase tracking-widest border border-slate-700 transition-all"
-        >
-          Sistema en Línea
-        </div>
+      <div
+        id="badge"
+        class="px-4 py-1.5 bg-slate-800 rounded-full text-[10px] font-bold uppercase tracking-widest border border-slate-700"
+      >
+        Sistema en Línea
       </div>
     </header>
 
     <main class="flex h-[calc(100vh-80px)] p-6 gap-6">
-      <!-- Sidebar Izquierda -->
       <aside class="w-80 flex flex-col gap-6">
         <div
           class="bg-slate-900 p-6 rounded-3xl border border-slate-800 shadow-2xl"
         >
           <label
-            class="text-[10px] font-black text-slate-500 uppercase mb-4 block tracking-tighter"
+            class="text-[10px] font-black text-slate-500 uppercase mb-4 block"
             >Dispositivo Seleccionado</label
           >
           <div class="flex gap-2">
             <select
               id="deviceSelect"
-              class="flex-1 bg-black border border-slate-700 rounded-xl p-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all text-white"
+              class="flex-1 bg-black border border-slate-700 rounded-xl p-3 text-sm text-white outline-none"
             >
-              <option value="">Cargando lista...</option>
+              <option value="">Cargando...</option>
             </select>
             <button
               onclick="cargarDispositivos()"
-              class="p-3 bg-slate-800 hover:bg-slate-700 rounded-xl transition-colors"
+              class="p-3 bg-slate-800 hover:bg-slate-700 rounded-xl"
             >
               🔄
             </button>
           </div>
-
           <button
             id="btnLocate"
             onclick="solicitarUbicacion()"
-            class="mt-4 w-full bg-blue-600 hover:bg-blue-500 active:scale-95 text-white py-4 rounded-xl font-black uppercase text-xs tracking-widest transition-all shadow-xl shadow-blue-900/20"
+            class="mt-4 w-full bg-blue-600 hover:bg-blue-500 text-white py-4 rounded-xl font-black uppercase text-xs tracking-widest transition-all"
           >
             Localizar Ahora
           </button>
@@ -113,47 +109,36 @@
             ></span>
             Estado del GPS
           </h3>
-
           <div class="space-y-6">
-            <div class="flex flex-col gap-1">
+            <div>
               <span class="text-[10px] text-slate-500 uppercase font-bold"
-                >Fuente de Señal</span
+                >Fuente</span
               >
               <div id="provText" class="text-sm font-bold text-slate-400">
                 Esperando...
               </div>
             </div>
-            <div class="flex flex-col gap-1">
+            <div>
               <span class="text-[10px] text-slate-500 uppercase font-bold"
-                >Precisión (Margen)</span
+                >Precisión</span
               >
               <div id="accText" class="text-lg font-mono text-blue-400">-</div>
             </div>
-            <div class="flex flex-col gap-1">
-              <span class="text-[10px] text-slate-500 uppercase font-bold"
-                >Última Señal</span
-              >
-              <div id="timeText" class="text-sm font-mono text-slate-400">
-                -
-              </div>
-            </div>
           </div>
-
-          <div class="mt-auto pt-6 border-t border-slate-800">
+          <div class="mt-auto pt-4 border-t border-slate-800">
             <div
               id="logContainer"
-              class="bg-black/50 p-4 rounded-xl text-[9px] font-mono text-slate-600 h-32 overflow-y-auto border border-slate-800"
+              class="bg-black/50 p-4 rounded-xl text-[9px] font-mono text-slate-600 h-32 overflow-y-auto"
             >
-              > Sistema iniciado...
+              > Iniciando sistema...
             </div>
           </div>
         </div>
       </aside>
 
-      <!-- Contenedor del Mapa -->
       <section
         id="mapWrapper"
-        class="flex-1 bg-slate-900 rounded-3xl border border-slate-800 overflow-hidden relative shadow-2xl transition-all"
+        class="flex-1 bg-slate-900 rounded-3xl border border-slate-800 overflow-hidden relative shadow-2xl"
       >
         <div id="map"></div>
       </section>
@@ -161,31 +146,10 @@
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-      const darkLayer = L.tileLayer(
+      let map = L.map("map", { center: [-12.046, -77.042], zoom: 13 });
+      L.tileLayer(
         "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
-        { attribution: "© CartoDB" },
-      );
-      const satelliteLayer = L.tileLayer(
-        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-        { attribution: "Esri" },
-      );
-      const streetLayer = L.tileLayer(
-        "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-        { attribution: "© OSM" },
-      );
-
-      let map = L.map("map", {
-        center: [-12.046, -77.042],
-        zoom: 13,
-        layers: [darkLayer],
-      });
-      L.control
-        .layers({
-          "Modo Oscuro": darkLayer,
-          Satélite: satelliteLayer,
-          Calles: streetLayer,
-        })
-        .addTo(map);
+      ).addTo(map);
 
       let marker, circle, pollInterval;
 
@@ -193,9 +157,8 @@
 
       function addLog(msg, isError = false) {
         const container = document.getElementById("logContainer");
-        const color = isError ? "text-red-400" : "text-slate-600";
         container.innerHTML =
-          `<div class="${color}">[${new Date().toLocaleTimeString()}] ${msg}</div>` +
+          `<div class="${isError ? "text-red-400" : "text-slate-500"}">[${new Date().toLocaleTimeString()}] ${msg}</div>` +
           container.innerHTML;
       }
 
@@ -213,7 +176,7 @@
           });
           addLog("Dispositivos sincronizados");
         } catch (e) {
-          addLog("Error de conexión con la base de datos", true);
+          addLog("Error de base de datos", true);
         }
       }
 
@@ -223,39 +186,47 @@
 
         const btn = document.getElementById("btnLocate");
         btn.disabled = true;
-        btn.innerText = "LOCALIZANDO...";
+        btn.innerText = "CONECTANDO...";
         btn.className =
-          "mt-4 w-full bg-slate-700 text-white py-4 rounded-xl font-black uppercase text-xs tracking-widest transition-all";
+          "mt-4 w-full bg-slate-700 text-white py-4 rounded-xl font-black uppercase text-xs";
 
         document.getElementById("mapWrapper").classList.add("pulse-searching");
         document.getElementById("telemetryDot").classList.add("animate-ping");
-        document.getElementById("badge").innerText = "Buscando...";
-        document
-          .getElementById("badge")
-          .classList.replace("bg-slate-800", "bg-blue-600");
 
-        addLog(`Solicitando GPS... (Límite 30s)`);
+        addLog(`Iniciando búsqueda de 30 segundos...`);
 
+        // 1. Iniciamos el cronómetro de inmediato (sin esperar al servidor)
+        iniciarEscucha();
+
+        // 2. Enviamos la señal al servidor (en paralelo)
         try {
-          await fetch("/api/request-location", {
+          const response = await fetch("/api/request-location", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ deviceToken: token }),
           });
-          iniciarEscucha();
+
+          if (response.ok) {
+            addLog("Señal de rastreo enviada con éxito.");
+            btn.innerText = "ESPERANDO GPS...";
+          } else {
+            const errorData = await response.json();
+            finalizarConError("Fallo en servidor: " + errorData.error);
+          }
         } catch (e) {
-          finalizarConError("Error al enviar solicitud al servidor.");
+          finalizarConError("No hay conexión con Render.");
         }
       }
 
       function iniciarEscucha() {
         if (pollInterval) clearInterval(pollInterval);
-
         let segundos = 0;
         const maxSegundos = 30;
 
         pollInterval = setInterval(async () => {
           segundos += 2;
+          addLog(`Buscando... ${segundos}s`);
+
           try {
             const res = await fetch("/api/get-status");
             const data = await res.json();
@@ -265,35 +236,28 @@
               actualizarInterfaz(data);
             } else if (segundos >= maxSegundos) {
               clearInterval(pollInterval);
-              finalizarConError(
-                "Tiempo agotado. El celular no responde (sin internet o GPS apagado).",
-              );
+              finalizarConError("Tiempo agotado. El celular no respondió.");
             }
           } catch (e) {
-            clearInterval(pollInterval);
-            finalizarConError("Error de comunicación en tiempo real.");
+            console.error(e);
           }
         }, 2000);
       }
 
       function finalizarConError(msg) {
+        clearInterval(pollInterval);
         addLog(msg, true);
         const btn = document.getElementById("btnLocate");
         btn.disabled = false;
         btn.innerText = "REINTENTAR";
         btn.className =
-          "mt-4 w-full bg-red-600 hover:bg-red-500 text-white py-4 rounded-xl font-black uppercase text-xs tracking-widest transition-all shadow-xl shadow-red-900/20";
-
+          "mt-4 w-full bg-red-600 text-white py-4 rounded-xl font-black uppercase text-xs";
         document
           .getElementById("mapWrapper")
           .classList.remove("pulse-searching");
         document
           .getElementById("telemetryDot")
           .classList.remove("animate-ping");
-        document.getElementById("badge").innerText = "Error";
-        document
-          .getElementById("badge")
-          .classList.replace("bg-blue-600", "bg-red-900");
       }
 
       function actualizarInterfaz(data) {
@@ -310,39 +274,24 @@
         marker = L.marker(pos).addTo(map);
         map.flyTo(pos, 18);
 
-        const provText = document.getElementById("provText");
-        const provider = (data.provider || "red").toLowerCase();
-
-        if (provider === "gps") {
-          provText.innerText = "🛰️ Satelital (GPS)";
-          provText.className = "text-sm font-bold text-emerald-400";
-        } else {
-          provText.innerText = "📶 Red (Antenas/WiFi)";
-          provText.className = "text-sm font-bold text-orange-400";
-        }
-
+        document.getElementById("provText").innerText = (
+          data.provider || "red"
+        ).toUpperCase();
         document.getElementById("accText").innerText =
-          `± ${data.accuracy.toFixed(1)} metros`;
-        document.getElementById("timeText").innerText = new Date(
-          data.timestamp,
-        ).toLocaleTimeString();
+          `± ${data.accuracy.toFixed(1)} m`;
 
         const btn = document.getElementById("btnLocate");
         btn.disabled = false;
         btn.innerText = "LOCALIZAR AHORA";
         btn.className =
-          "mt-4 w-full bg-blue-600 hover:bg-blue-500 text-white py-4 rounded-xl font-black uppercase text-xs tracking-widest transition-all shadow-xl shadow-blue-900/20";
-
-        document.getElementById("badge").innerText = "Actualizado";
-        document.getElementById("badge").className =
-          "px-4 py-1.5 bg-emerald-600 rounded-full text-[10px] font-bold uppercase tracking-widest border border-emerald-500 transition-all";
+          "mt-4 w-full bg-blue-600 text-white py-4 rounded-xl font-black uppercase text-xs";
         document
           .getElementById("mapWrapper")
           .classList.remove("pulse-searching");
         document
           .getElementById("telemetryDot")
           .classList.remove("animate-ping");
-        addLog("✅ Ubicación recibida");
+        addLog("✅ UBICACIÓN RECIBIDA");
       }
     </script>
   </body>
