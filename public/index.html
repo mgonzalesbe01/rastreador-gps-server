@@ -60,7 +60,7 @@
       <div class="flex items-center gap-4">
         <div
           id="badge"
-          class="px-4 py-1.5 bg-slate-800 rounded-full text-[10px] font-bold uppercase tracking-widest border border-slate-700"
+          class="px-4 py-1.5 bg-slate-800 rounded-full text-[10px] font-bold uppercase tracking-widest border border-slate-700 transition-all"
         >
           Sistema en Línea
         </div>
@@ -70,7 +70,6 @@
     <main class="flex h-[calc(100vh-80px)] p-6 gap-6">
       <!-- Sidebar Izquierda -->
       <aside class="w-80 flex flex-col gap-6">
-        <!-- Control de Dispositivos -->
         <div
           class="bg-slate-900 p-6 rounded-3xl border border-slate-800 shadow-2xl"
         >
@@ -102,14 +101,16 @@
           </button>
         </div>
 
-        <!-- Información de Telemetría -->
         <div
           class="bg-slate-900 p-6 rounded-3xl border border-slate-800 flex-1 flex flex-col shadow-2xl"
         >
           <h3
             class="text-xs font-black uppercase text-blue-500 mb-6 tracking-widest flex items-center gap-2"
           >
-            <span class="w-2 h-2 bg-blue-500 rounded-full animate-ping"></span>
+            <span
+              id="telemetryDot"
+              class="w-2 h-2 bg-blue-500 rounded-full"
+            ></span>
             Estado del GPS
           </h3>
 
@@ -152,7 +153,7 @@
       <!-- Contenedor del Mapa -->
       <section
         id="mapWrapper"
-        class="flex-1 bg-slate-900 rounded-3xl border border-slate-800 overflow-hidden relative shadow-2xl"
+        class="flex-1 bg-slate-900 rounded-3xl border border-slate-800 overflow-hidden relative shadow-2xl transition-all"
       >
         <div id="map"></div>
       </section>
@@ -160,7 +161,6 @@
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-      // Capas de Mapas
       const darkLayer = L.tileLayer(
         "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
         { attribution: "© CartoDB" },
@@ -174,14 +174,11 @@
         { attribution: "© OSM" },
       );
 
-      // Inicializar Mapa
       let map = L.map("map", {
         center: [-12.046, -77.042],
         zoom: 13,
         layers: [darkLayer],
       });
-
-      // Selector de Capas
       L.control
         .layers({
           "Modo Oscuro": darkLayer,
@@ -194,10 +191,11 @@
 
       window.onload = cargarDispositivos;
 
-      function addLog(msg) {
+      function addLog(msg, isError = false) {
         const container = document.getElementById("logContainer");
+        const color = isError ? "text-red-400" : "text-slate-600";
         container.innerHTML =
-          `<div>[${new Date().toLocaleTimeString()}] ${msg}</div>` +
+          `<div class="${color}">[${new Date().toLocaleTimeString()}] ${msg}</div>` +
           container.innerHTML;
       }
 
@@ -215,7 +213,7 @@
           });
           addLog("Dispositivos sincronizados");
         } catch (e) {
-          addLog("Error de conexión");
+          addLog("Error de conexión con la base de datos", true);
         }
       }
 
@@ -226,35 +224,80 @@
         const btn = document.getElementById("btnLocate");
         btn.disabled = true;
         btn.innerText = "LOCALIZANDO...";
+        btn.className =
+          "mt-4 w-full bg-slate-700 text-white py-4 rounded-xl font-black uppercase text-xs tracking-widest transition-all";
+
         document.getElementById("mapWrapper").classList.add("pulse-searching");
+        document.getElementById("telemetryDot").classList.add("animate-ping");
         document.getElementById("badge").innerText = "Buscando...";
-        addLog(`Solicitando GPS...`);
+        document
+          .getElementById("badge")
+          .classList.replace("bg-slate-800", "bg-blue-600");
 
-        await fetch("/api/request-location", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ deviceToken: token }),
-        });
+        addLog(`Solicitando GPS... (Límite 30s)`);
 
-        iniciarEscucha();
+        try {
+          await fetch("/api/request-location", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ deviceToken: token }),
+          });
+          iniciarEscucha();
+        } catch (e) {
+          finalizarConError("Error al enviar solicitud al servidor.");
+        }
       }
 
       function iniciarEscucha() {
         if (pollInterval) clearInterval(pollInterval);
-        pollInterval = setInterval(async () => {
-          const res = await fetch("/api/get-status");
-          const data = await res.json();
 
-          if (data.status === "OK") {
+        let segundos = 0;
+        const maxSegundos = 30;
+
+        pollInterval = setInterval(async () => {
+          segundos += 2;
+          try {
+            const res = await fetch("/api/get-status");
+            const data = await res.json();
+
+            if (data.status === "OK") {
+              clearInterval(pollInterval);
+              actualizarInterfaz(data);
+            } else if (segundos >= maxSegundos) {
+              clearInterval(pollInterval);
+              finalizarConError(
+                "Tiempo agotado. El celular no responde (sin internet o GPS apagado).",
+              );
+            }
+          } catch (e) {
             clearInterval(pollInterval);
-            actualizarInterfaz(data);
+            finalizarConError("Error de comunicación en tiempo real.");
           }
         }, 2000);
       }
 
+      function finalizarConError(msg) {
+        addLog(msg, true);
+        const btn = document.getElementById("btnLocate");
+        btn.disabled = false;
+        btn.innerText = "REINTENTAR";
+        btn.className =
+          "mt-4 w-full bg-red-600 hover:bg-red-500 text-white py-4 rounded-xl font-black uppercase text-xs tracking-widest transition-all shadow-xl shadow-red-900/20";
+
+        document
+          .getElementById("mapWrapper")
+          .classList.remove("pulse-searching");
+        document
+          .getElementById("telemetryDot")
+          .classList.remove("animate-ping");
+        document.getElementById("badge").innerText = "Error";
+        document
+          .getElementById("badge")
+          .classList.replace("bg-blue-600", "bg-red-900");
+      }
+
       function actualizarInterfaz(data) {
         const pos = [data.lat, data.lng];
-
         if (marker) map.removeLayer(marker);
         if (circle) map.removeLayer(circle);
 
@@ -267,18 +310,15 @@
         marker = L.marker(pos).addTo(map);
         map.flyTo(pos, 18);
 
-        // TELEMETRÍA: Verificación de fuente (GPS vs Red)
         const provText = document.getElementById("provText");
         const provider = (data.provider || "red").toLowerCase();
 
         if (provider === "gps") {
           provText.innerText = "🛰️ Satelital (GPS)";
           provText.className = "text-sm font-bold text-emerald-400";
-          addLog("Señal de alta precisión recibida");
         } else {
           provText.innerText = "📶 Red (Antenas/WiFi)";
           provText.className = "text-sm font-bold text-orange-400";
-          addLog("Señal aproximada recibida");
         }
 
         document.getElementById("accText").innerText =
@@ -286,13 +326,23 @@
         document.getElementById("timeText").innerText = new Date(
           data.timestamp,
         ).toLocaleTimeString();
-        document.getElementById("badge").innerText = "Recibido";
 
-        document.getElementById("btnLocate").disabled = false;
-        document.getElementById("btnLocate").innerText = "LOCALIZAR AHORA";
+        const btn = document.getElementById("btnLocate");
+        btn.disabled = false;
+        btn.innerText = "LOCALIZAR AHORA";
+        btn.className =
+          "mt-4 w-full bg-blue-600 hover:bg-blue-500 text-white py-4 rounded-xl font-black uppercase text-xs tracking-widest transition-all shadow-xl shadow-blue-900/20";
+
+        document.getElementById("badge").innerText = "Actualizado";
+        document.getElementById("badge").className =
+          "px-4 py-1.5 bg-emerald-600 rounded-full text-[10px] font-bold uppercase tracking-widest border border-emerald-500 transition-all";
         document
           .getElementById("mapWrapper")
           .classList.remove("pulse-searching");
+        document
+          .getElementById("telemetryDot")
+          .classList.remove("animate-ping");
+        addLog("✅ Ubicación recibida");
       }
     </script>
   </body>
