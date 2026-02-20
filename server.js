@@ -31,7 +31,6 @@ app.post("/api/register-device", async (req, res) => {
   if (!deviceId || !token) return res.status(400).send("Faltan datos");
 
   try {
-    // Guardamos en la ruta obligatoria: /artifacts/{appId}/public/data/devices
     await db
       .collection("artifacts", appId, "public", "data", "devices")
       .doc(deviceId)
@@ -76,7 +75,6 @@ app.post("/api/request-location", async (req, res) => {
 
   try {
     await admin.messaging().send(message);
-    // Guardamos el estado "Buscando" en Firestore
     await db
       .collection("artifacts", appId, "public", "data", "status")
       .doc("lastLocation")
@@ -128,9 +126,11 @@ app.get("/api/get-status", async (req, res) => {
 
 // Servir la web
 app.use(express.static("public"));
-app.get("*", (req, res) =>
-  res.sendFile(path.join(__dirname, "public", "index.html")),
-);
+
+// CORRECCIÓN PARA NODE 22+: Se usa '(.*)' o '/*' en lugar de '*'
+app.get("/*", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "index.html"));
+});
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () =>
