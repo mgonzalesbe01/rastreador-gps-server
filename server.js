@@ -47,7 +47,6 @@ app.get("/api/devices", async (req, res) => {
     const snapshot = await db.collection("artifacts").get();
     const devices = [];
     snapshot.forEach((doc) => {
-      // Filtramos para no mostrar el documento de estado de ubicación
       if (doc.id !== "lastLocation") devices.push(doc.data());
     });
     res.json(devices);
@@ -64,21 +63,18 @@ app.post("/api/request-location", async (req, res) => {
   );
 
   const message = {
-    data: { command: "REQUEST_GPS" }, // COMANDO DE DATOS (Invisible)
+    data: { command: "REQUEST_GPS" },
     token: deviceToken,
     android: {
       priority: "high",
-      ttl: 0, // Mensaje inmediato, no se guarda en cola
+      ttl: 0,
     },
   };
 
   try {
     await admin.messaging().send(message);
-    // IMPORTANTE: Borramos la ubicación anterior para que la web detecte que estamos esperando una nueva
     await db.collection("artifacts").doc("lastLocation").delete();
-    console.log(
-      "🚀 [FCM] Orden enviada a los servidores de Google para el celular.",
-    );
+    console.log("🚀 [FCM] Orden enviada al celular.");
     res.json({ success: true });
   } catch (error) {
     console.error(`❌ [FCM ERROR] ${error.message}`);
@@ -86,17 +82,10 @@ app.post("/api/request-location", async (req, res) => {
   }
 });
 
-// 4. RECIBIR (El celular envía sus coordenadas AQUÍ)
+// 4. RECIBIR UBICACIÓN
 app.post("/api/receive-location", async (req, res) => {
-  console.log("📥 [RECIBIENDO] Datos entrando desde el celular...");
+  console.log("📥 [RECIBIENDO] Datos de ubicación entrando...");
   const { lat, lng, accuracy, deviceId, provider } = req.body;
-
-  if (!lat || !lng) {
-    console.log(
-      "⚠️ [ALERTA] El celular intentó enviar datos pero llegaron vacíos.",
-    );
-    return res.status(400).send("Datos incompletos");
-  }
 
   try {
     await db.collection("artifacts").doc("lastLocation").set({
@@ -108,9 +97,7 @@ app.post("/api/receive-location", async (req, res) => {
       status: "OK",
       timestamp: Date.now(),
     });
-    console.log(
-      `✅ [UBICACIÓN GUARDADA] Lat: ${lat}, Lng: ${lng} de ${deviceId}`,
-    );
+    console.log(`✅ [UBICACIÓN GUARDADA] ${lat}, ${lng} (${deviceId})`);
     res.sendStatus(200);
   } catch (error) {
     console.error(`❌ [ERROR FIRESTORE] ${error.message}`);
@@ -118,7 +105,23 @@ app.post("/api/receive-location", async (req, res) => {
   }
 });
 
-// 5. STATUS (La web pregunta: ¿Ya llegó la ubicación?)
+// 5. RECIBIR ERRORES (Nuevo endpoint para depuración)
+app.post("/api/report-error", async (req, res) => {
+  const { error, deviceId } = req.body;
+  console.log(`⚠️ [ERROR CELULAR] ${deviceId}: ${error}`);
+  try {
+    await db.collection("artifacts").doc("lastLocation").set({
+      status: "ERROR",
+      message: error,
+      timestamp: Date.now(),
+    });
+    res.sendStatus(200);
+  } catch (e) {
+    res.status(500).send(e.message);
+  }
+});
+
+// 6. STATUS
 app.get("/api/get-status", async (req, res) => {
   const doc = await db.collection("artifacts").doc("lastLocation").get();
   res.json(doc.exists ? doc.data() : { status: "WAITING" });
@@ -130,6 +133,4 @@ app.get("/", (req, res) =>
 );
 
 const PORT = process.env.PORT || 10000;
-app.listen(PORT, () =>
-  console.log(`🚀 Servidor funcionando en puerto ${PORT}`),
-);
+app.listen(PORT, () => console.log(`🚀 Servidor listo en puerto ${PORT}`));
