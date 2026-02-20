@@ -2,8 +2,7 @@
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Panel de Rastreo Profesional</title>
+    <title>Panel de Rastreo - Google Maps Edition</title>
     <link
       rel="stylesheet"
       href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
@@ -11,287 +10,236 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
       #map {
-        height: calc(100vh - 80px);
+        height: calc(100vh - 100px);
         width: 100%;
-        border-radius: 1rem;
+        border-radius: 1.5rem;
         z-index: 1;
       }
-      .pulse-searching {
-        animation: pulse-blue 2s infinite;
-      }
-      @keyframes pulse-blue {
-        0% {
-          box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
-        }
-        70% {
-          box-shadow: 0 0 0 15px rgba(59, 130, 246, 0);
-        }
-        100% {
-          box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
-        }
+      .leaflet-control-layers {
+        border-radius: 12px !important;
+        border: none !important;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3) !important;
+        padding: 5px !important;
       }
     </style>
   </head>
-  <body class="bg-slate-950 text-slate-200 font-sans overflow-hidden">
-    <header
-      class="h-20 bg-slate-900/80 backdrop-blur-md border-b border-slate-800 px-8 flex justify-between items-center z-50 relative"
-    >
-      <div class="flex items-center gap-3">
-        <div class="bg-blue-600 p-2 rounded-xl shadow-lg shadow-blue-900/20">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            class="h-6 w-6 text-white"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-            />
-          </svg>
-        </div>
-        <h1 class="text-xl font-black tracking-tight uppercase">
-          Tracker <span class="text-blue-500 font-black">Pro</span>
-        </h1>
-      </div>
-      <div
-        id="badge"
-        class="px-4 py-1.5 bg-slate-800 rounded-full text-[10px] font-bold uppercase tracking-widest border border-slate-700"
-      >
-        Sistema en Línea
-      </div>
-    </header>
-
-    <main class="flex h-[calc(100vh-80px)] p-6 gap-6">
-      <aside class="w-80 flex flex-col gap-6">
+  <body class="bg-[#1a1b1e] text-white p-6 font-sans">
+    <div class="max-w-7xl mx-auto flex flex-col md:flex-row gap-6">
+      <!-- Barra Lateral de Control -->
+      <aside class="w-full md:w-80 space-y-4">
         <div
-          class="bg-slate-900 p-6 rounded-3xl border border-slate-800 shadow-2xl"
+          class="bg-[#2c2d31] p-6 rounded-2xl border border-gray-800 shadow-xl"
         >
-          <label
-            class="text-[10px] font-black text-slate-500 uppercase mb-4 block"
-            >Dispositivo Seleccionado</label
-          >
-          <div class="flex gap-2">
-            <select
-              id="deviceSelect"
-              class="flex-1 bg-black border border-slate-700 rounded-xl p-3 text-sm text-white outline-none"
+          <div class="flex items-center gap-2 mb-6">
+            <div class="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+            <h2
+              class="text-xs font-black uppercase tracking-widest text-gray-400"
             >
-              <option value="">Cargando...</option>
-            </select>
-            <button
-              onclick="cargarDispositivos()"
-              class="p-3 bg-slate-800 hover:bg-slate-700 rounded-xl"
-            >
-              🔄
-            </button>
+              Sistema en Vivo
+            </h2>
           </div>
+
+          <label
+            class="text-[10px] font-bold uppercase text-blue-400 mb-2 block"
+            >Dispositivo</label
+          >
+          <select
+            id="deviceSelect"
+            class="w-full bg-black/50 p-3 rounded-xl text-sm border border-gray-700 mb-4 outline-none focus:border-blue-500 transition-all text-white"
+          >
+            <option>Buscando dispositivos...</option>
+          </select>
+
           <button
             id="btnLocate"
-            onclick="solicitarUbicacion()"
-            class="mt-4 w-full bg-blue-600 hover:bg-blue-500 text-white py-4 rounded-xl font-black uppercase text-xs tracking-widest transition-all"
+            onclick="solicitar()"
+            class="w-full bg-blue-600 p-4 rounded-xl font-black text-xs tracking-tighter hover:bg-blue-500 active:scale-95 transition-all shadow-lg shadow-blue-900/20"
           >
-            Localizar Ahora
+            ACTUALIZAR UBICACIÓN
           </button>
         </div>
 
         <div
-          class="bg-slate-900 p-6 rounded-3xl border border-slate-800 flex-1 flex flex-col shadow-2xl"
+          class="bg-[#2c2d31] p-6 rounded-2xl border border-gray-800 shadow-xl flex-1"
         >
           <h3
-            class="text-xs font-black uppercase text-blue-500 mb-6 tracking-widest flex items-center gap-2"
+            class="text-[10px] font-bold uppercase text-gray-500 mb-4 tracking-widest text-center italic"
           >
-            <span
-              id="telemetryDot"
-              class="w-2 h-2 bg-blue-500 rounded-full"
-            ></span>
-            Estado del GPS
+            Consola de Eventos
           </h3>
-          <div class="space-y-6">
-            <div>
-              <span class="text-[10px] text-slate-500 uppercase font-bold"
-                >Fuente</span
-              >
-              <div id="provText" class="text-sm font-bold text-slate-400">
-                Esperando...
-              </div>
-            </div>
-            <div>
-              <span class="text-[10px] text-slate-500 uppercase font-bold"
-                >Precisión</span
-              >
-              <div id="accText" class="text-lg font-mono text-blue-400">-</div>
-            </div>
-          </div>
-          <div class="mt-auto pt-4 border-t border-slate-800">
-            <div
-              id="logContainer"
-              class="bg-black/50 p-4 rounded-xl text-[9px] font-mono text-slate-600 h-32 overflow-y-auto"
-            >
-              > Iniciando sistema...
-            </div>
+          <div
+            id="log"
+            class="bg-black/40 p-4 rounded-xl h-60 overflow-y-auto font-mono text-[10px] text-gray-400 border border-gray-800 leading-relaxed"
+          >
+            > Esperando conexión...
           </div>
         </div>
       </aside>
 
-      <section
-        id="mapWrapper"
-        class="flex-1 bg-slate-900 rounded-3xl border border-slate-800 overflow-hidden relative shadow-2xl"
+      <!-- Contenedor del Mapa -->
+      <div
+        class="flex-1 bg-[#2c2d31] rounded-[2rem] p-2 border border-gray-800 shadow-2xl relative"
       >
         <div id="map"></div>
-      </section>
-    </main>
+
+        <!-- Indicador de Precisión Flotante -->
+        <div
+          id="accuracyBadge"
+          class="absolute bottom-8 left-8 z-[1000] bg-black/80 backdrop-blur-md px-4 py-2 rounded-full border border-white/10 text-[10px] font-bold hidden"
+        >
+          PRECISIÓN: <span id="accVal" class="text-blue-400">-</span>
+        </div>
+      </div>
+    </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-      let map = L.map("map", { center: [-12.046, -77.042], zoom: 13 });
-      L.tileLayer(
-        "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
-      ).addTo(map);
+      // CAPAS DE GOOGLE MAPS
+      const googleStreets = L.tileLayer(
+        "https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}",
+        {
+          maxZoom: 20,
+          subdomains: ["mt0", "mt1", "mt2", "mt3"],
+          attribution: "Google Maps",
+        },
+      );
 
-      let marker, circle, pollInterval;
+      const googleHybrid = L.tileLayer(
+        "https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}",
+        {
+          maxZoom: 20,
+          subdomains: ["mt0", "mt1", "mt2", "mt3"],
+          attribution: "Google Maps Satellite",
+        },
+      );
 
-      window.onload = cargarDispositivos;
+      const googleTerrain = L.tileLayer(
+        "https://{s}.google.com/vt/lyrs=p&x={x}&y={y}&z={z}",
+        {
+          maxZoom: 20,
+          subdomains: ["mt0", "mt1", "mt2", "mt3"],
+          attribution: "Google Maps Terrain",
+        },
+      );
 
-      function addLog(msg, isError = false) {
-        const container = document.getElementById("logContainer");
-        container.innerHTML =
-          `<div class="${isError ? "text-red-400" : "text-slate-500"}">[${new Date().toLocaleTimeString()}] ${msg}</div>` +
-          container.innerHTML;
-      }
+      // Inicializar Mapa (Por defecto en Híbrido para ver calles sobre satélite)
+      let map = L.map("map", {
+        center: [-12.04, -77.04],
+        zoom: 13,
+        layers: [googleHybrid],
+      });
 
-      async function cargarDispositivos() {
+      // Selector de Capas
+      const baseMaps = {
+        "Google Calles (Nombres)": googleStreets,
+        "Google Satélite (Híbrido)": googleHybrid,
+        "Google Terreno": googleTerrain,
+      };
+      L.control.layers(baseMaps).addTo(map);
+
+      let marker, circle, poll;
+
+      async function cargar() {
         try {
           const res = await fetch("/api/devices");
-          const devices = await res.json();
-          const select = document.getElementById("deviceSelect");
-          select.innerHTML = '<option value="">-- Elige --</option>';
-          devices.forEach((dev) => {
-            const opt = document.createElement("option");
-            opt.value = dev.token;
-            opt.text = dev.deviceId;
-            select.appendChild(opt);
-          });
-          addLog("Dispositivos sincronizados");
+          const data = await res.json();
+          const sel = document.getElementById("deviceSelect");
+          if (data.length > 0) {
+            sel.innerHTML = data
+              .map((d) => `<option value="${d.token}">${d.deviceId}</option>`)
+              .join("");
+            addLog(`Detectado: ${data[0].deviceId}`);
+          } else {
+            sel.innerHTML = `<option>Sin dispositivos</option>`;
+          }
         } catch (e) {
-          addLog("Error de base de datos", true);
+          addLog("Error cargando lista", true);
         }
       }
+      window.onload = cargar;
 
-      async function solicitarUbicacion() {
+      function addLog(m, err = false) {
+        const l = document.getElementById("log");
+        l.innerHTML =
+          `<div class="${err ? "text-red-500" : ""} border-b border-white/5 py-1"><span>${new Date().toLocaleTimeString()}</span> ${m}</div>` +
+          l.innerHTML;
+      }
+
+      async function solicitar() {
         const token = document.getElementById("deviceSelect").value;
-        if (!token) return alert("Selecciona un dispositivo");
+        if (!token || token === "Sin dispositivos") return;
 
+        addLog("Enviando comando de rastreo...");
         const btn = document.getElementById("btnLocate");
         btn.disabled = true;
-        btn.innerText = "CONECTANDO...";
-        btn.className =
-          "mt-4 w-full bg-slate-700 text-white py-4 rounded-xl font-black uppercase text-xs";
+        btn.innerText = "SOLICITANDO...";
 
-        document.getElementById("mapWrapper").classList.add("pulse-searching");
-        document.getElementById("telemetryDot").classList.add("animate-ping");
-
-        addLog(`Iniciando búsqueda de 30 segundos...`);
-
-        // 1. Iniciamos el cronómetro de inmediato (sin esperar al servidor)
-        iniciarEscucha();
-
-        // 2. Enviamos la señal al servidor (en paralelo)
         try {
-          const response = await fetch("/api/request-location", {
+          const res = await fetch("/api/request-location", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ deviceToken: token }),
           });
-
-          if (response.ok) {
-            addLog("Señal de rastreo enviada con éxito.");
-            btn.innerText = "ESPERANDO GPS...";
+          if (res.ok) {
+            addLog("Comando enviado. Esperando respuesta GPS...");
+            escuchar();
           } else {
-            const errorData = await response.json();
-            finalizarConError("Fallo en servidor: " + errorData.error);
+            addLog("Error al contactar servidor", true);
+            btn.disabled = false;
+            btn.innerText = "REINTENTAR";
           }
         } catch (e) {
-          finalizarConError("No hay conexión con Render.");
+          addLog("Error de conexión", true);
+          btn.disabled = false;
         }
       }
 
-      function iniciarEscucha() {
-        if (pollInterval) clearInterval(pollInterval);
-        let segundos = 0;
-        const maxSegundos = 30;
+      function escuchar() {
+        let i = 0;
+        if (poll) clearInterval(poll);
+        poll = setInterval(async () => {
+          i++;
+          const res = await fetch("/api/get-status");
+          const data = await res.json();
 
-        pollInterval = setInterval(async () => {
-          segundos += 2;
-          addLog(`Buscando... ${segundos}s`);
+          if (data.status === "OK") {
+            clearInterval(poll);
+            const btn = document.getElementById("btnLocate");
+            btn.disabled = false;
+            btn.innerText = "ACTUALIZAR UBICACIÓN";
 
-          try {
-            const res = await fetch("/api/get-status");
-            const data = await res.json();
+            addLog(`✅ Ubicación real recibida (${data.provider})`);
 
-            if (data.status === "OK") {
-              clearInterval(pollInterval);
-              actualizarInterfaz(data);
-            } else if (segundos >= maxSegundos) {
-              clearInterval(pollInterval);
-              finalizarConError("Tiempo agotado. El celular no respondió.");
-            }
-          } catch (e) {
-            console.error(e);
+            const pos = [data.lat, data.lng];
+            document.getElementById("accuracyBadge").style.display = "block";
+            document.getElementById("accVal").innerText =
+              `${data.accuracy.toFixed(1)} m`;
+
+            if (marker) map.removeLayer(marker);
+            if (circle) map.removeLayer(circle);
+
+            circle = L.circle(pos, {
+              radius: data.accuracy,
+              color: "#3b82f6",
+              weight: 1,
+              fillOpacity: 0.1,
+            }).addTo(map);
+            marker = L.marker(pos).addTo(map);
+            map.flyTo(pos, 18);
+          } else if (data.status === "ERROR") {
+            clearInterval(poll);
+            addLog(`❌ ERROR: ${data.message}`, true);
+            const btn = document.getElementById("btnLocate");
+            btn.disabled = false;
+            btn.innerText = "REINTENTAR";
+          } else if (i > 20) {
+            clearInterval(poll);
+            addLog("❌ Tiempo agotado. Sin respuesta.", true);
+            const btn = document.getElementById("btnLocate");
+            btn.disabled = false;
+            btn.innerText = "REINTENTAR";
           }
         }, 2000);
-      }
-
-      function finalizarConError(msg) {
-        clearInterval(pollInterval);
-        addLog(msg, true);
-        const btn = document.getElementById("btnLocate");
-        btn.disabled = false;
-        btn.innerText = "REINTENTAR";
-        btn.className =
-          "mt-4 w-full bg-red-600 text-white py-4 rounded-xl font-black uppercase text-xs";
-        document
-          .getElementById("mapWrapper")
-          .classList.remove("pulse-searching");
-        document
-          .getElementById("telemetryDot")
-          .classList.remove("animate-ping");
-      }
-
-      function actualizarInterfaz(data) {
-        const pos = [data.lat, data.lng];
-        if (marker) map.removeLayer(marker);
-        if (circle) map.removeLayer(circle);
-
-        circle = L.circle(pos, {
-          radius: data.accuracy,
-          color: "#3b82f6",
-          weight: 1,
-          fillOpacity: 0.15,
-        }).addTo(map);
-        marker = L.marker(pos).addTo(map);
-        map.flyTo(pos, 18);
-
-        document.getElementById("provText").innerText = (
-          data.provider || "red"
-        ).toUpperCase();
-        document.getElementById("accText").innerText =
-          `± ${data.accuracy.toFixed(1)} m`;
-
-        const btn = document.getElementById("btnLocate");
-        btn.disabled = false;
-        btn.innerText = "LOCALIZAR AHORA";
-        btn.className =
-          "mt-4 w-full bg-blue-600 text-white py-4 rounded-xl font-black uppercase text-xs";
-        document
-          .getElementById("mapWrapper")
-          .classList.remove("pulse-searching");
-        document
-          .getElementById("telemetryDot")
-          .classList.remove("animate-ping");
-        addLog("✅ UBICACIÓN RECIBIDA");
       }
     </script>
   </body>
