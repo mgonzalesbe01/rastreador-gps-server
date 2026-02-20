@@ -134,8 +134,9 @@ app.get("/api/get-status", async (req, res) => {
 // --- SERVIR LA WEB ---
 app.use(express.static("public"));
 
-// Corrección para evitar PathError en Node 22
-app.get("*", (req, res) => {
+// SOLUCIÓN: Para evitar el PathError en Node 22, usamos la ruta raíz específica
+// Como es una aplicación de una sola página, esto es lo más seguro.
+app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
