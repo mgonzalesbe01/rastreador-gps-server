@@ -1,0 +1,164 @@
+<!doctype html>
+<html>
+  <head>
+    <title>GPS On-Demand</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      #map {
+        height: 500px;
+        width: 100%;
+        border-radius: 1rem;
+      }
+    </style>
+  </head>
+  <body class="bg-slate-900 text-white font-sans p-4">
+    <div class="max-w-4xl mx-auto">
+      <header class="flex justify-between items-center mb-6">
+        <h1 class="text-xl font-bold text-blue-400">Rastreador Inteligente</h1>
+        <div id="badge" class="px-3 py-1 bg-slate-800 rounded-full text-xs">
+          Desconectado
+        </div>
+      </header>
+
+      <div class="grid md:grid-cols-3 gap-6">
+        <!-- Controles -->
+        <div class="md:col-span-1 space-y-4">
+          <div class="bg-slate-800 p-4 rounded-xl">
+            <label class="text-xs text-slate-400 block mb-2 font-bold uppercase"
+              >Seleccionar Dispositivo</label
+            >
+
+            <!-- AHORA ES UN MENÚ DESPLEGABLE -->
+            <select
+              id="deviceSelect"
+              class="w-full bg-slate-700 border-none rounded p-2 text-sm mb-4 outline-none"
+            >
+              <option value="">Cargando dispositivos...</option>
+            </select>
+
+            <button
+              onclick="enviarPeticion()"
+              id="mainBtn"
+              class="w-full bg-blue-600 hover:bg-blue-500 py-3 rounded-lg font-bold transition-all shadow-lg active:scale-95 disabled:bg-slate-600"
+            >
+              Localizar Ahora
+            </button>
+          </div>
+
+          <div class="bg-slate-800 p-4 rounded-xl text-sm">
+            <h3 class="font-bold mb-2">Detalles:</h3>
+            <p class="text-slate-400">
+              Precisión: <span id="accText" class="text-white">-</span>
+            </p>
+            <p class="text-slate-400 text-[10px] mt-2 italic" id="timeText"></p>
+          </div>
+        </div>
+
+        <!-- Mapa -->
+        <div class="md:col-span-2">
+          <div id="map" class="shadow-2xl"></div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+      let map = L.map("map").setView([0, 0], 2);
+
+      // CORRECCIÓN: URL del mapa actualizada y corregida
+      L.tileLayer(
+        "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+        {
+          attribution:
+            '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+        },
+      ).addTo(map);
+
+      let marker, circle;
+
+      // AL CARGAR LA PÁGINA: Buscar los celulares registrados
+      window.onload = async () => {
+        cargarDispositivos();
+      };
+
+      async function cargarDispositivos() {
+        try {
+          const res = await fetch("/api/devices");
+          const devices = await res.json();
+          const select = document.getElementById("deviceSelect");
+
+          select.innerHTML = ""; // Limpiar lista
+          if (devices.length === 0) {
+            select.innerHTML =
+              '<option value="">Ningún celular registrado aún</option>';
+            return;
+          }
+
+          devices.forEach((dev) => {
+            const option = document.createElement("option");
+            option.value = dev.token;
+            option.text = dev.deviceId; // Ej: "Samsung Galaxy S23"
+            select.appendChild(option);
+          });
+        } catch (e) {
+          console.error("Error cargando dispositivos", e);
+        }
+      }
+
+      async function enviarPeticion() {
+        const token = document.getElementById("deviceSelect").value;
+        if (!token)
+          return alert("Selecciona un dispositivo válido de la lista");
+
+        document.getElementById("mainBtn").disabled = true;
+        document.getElementById("badge").innerText = "Solicitando...";
+
+        await fetch("/api/request-location", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ deviceToken: token }),
+        });
+
+        iniciarPolling();
+      }
+
+      function iniciarPolling() {
+        const poll = setInterval(async () => {
+          const res = await fetch("/api/get-status");
+          const data = await res.json();
+
+          if (data.status === "OK") {
+            clearInterval(poll);
+            actualizarMapa(data);
+            document.getElementById("mainBtn").disabled = false;
+            document.getElementById("badge").innerText = "Recibido";
+          }
+        }, 2000);
+      }
+
+      function actualizarMapa(data) {
+        const pos = [data.lat, data.lng];
+        if (marker) map.removeLayer(marker);
+        if (circle) map.removeLayer(circle);
+
+        circle = L.circle(pos, {
+          radius: data.accuracy,
+          color: "#3b82f6",
+          fillOpacity: 0.2,
+        }).addTo(map);
+        marker = L.marker(pos).addTo(map);
+        map.flyTo(pos, 17);
+
+        document.getElementById("accText").innerText =
+          `${data.accuracy.toFixed(1)} metros`;
+        document.getElementById("timeText").innerText =
+          `Última actualización: ${new Date(data.timestamp).toLocaleTimeString()}`;
+      }
+    </script>
+  </body>
+</html>
